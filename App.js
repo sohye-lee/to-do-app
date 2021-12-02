@@ -5,41 +5,99 @@ import {
   Text,
   View,
   TouchableOpacity,
+  Pressable,
   TouchableHighlight,
   TextInput,
   ScrollView,
   Alert,
+  Modal,
 } from "react-native";
 import Fontisto from "@expo/vector-icons/Fontisto";
+import { Feather } from "@expo/vector-icons";
 import { theme } from "./colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const STORAGE_KEY = "@toDo";
+const STORAGE_KEY = "@toDos";
 
 export default function App() {
   const [working, setWorking] = useState(true);
   const [text, setText] = useState("");
-  const [toDos, setToDos] = useState([]);
 
-  const life = () => setWorking(false);
-  const work = () => setWorking(true);
-  const onChangeText = (e) => setText(e);
+  const [toDos, setToDos] = useState([]);
+  const [workProgress, setWorkProgress] = useState(0);
+  const [lifeProgress, setLifeProgress] = useState(0);
+  const [modalShow, setModalShow] = useState(false);
+  const [toEdit, setToEdit] = useState(0);
+  const [editText, setEditText] = useState("");
+  const [newText, setNewText] = useState("");
+
+  const life = () => {
+    setWorking(false);
+  };
+  const work = () => {
+    setWorking(true);
+  };
+
+  const getWorkProgress = () => {
+    const toDoLength =
+      toDos && toDos.length > 0
+        ? toDos.filter((t) => t.working == true).length
+        : 1;
+    const doneLength =
+      toDos && toDos.length > 0
+        ? toDos.filter((t) => t.done == true && t.working == true).length
+        : 0;
+    const currentProgress = Math.round((doneLength / toDoLength) * 100);
+
+    setWorkProgress(currentProgress);
+  };
+
+  const barBlueColor = working
+    ? (workProgress / 100) * 255
+    : (lifeProgress / 100) * 255;
+
+  const getLifeProgress = () => {
+    const toDoLength =
+      toDos && toDos.length > 0
+        ? toDos.filter((t) => t.working == false).length
+        : 1;
+    const doneLength =
+      toDos && toDos.length > 0
+        ? toDos.filter((t) => t.done == true && t.working == false).length
+        : 0;
+    const currentProgress = Math.round((doneLength / toDoLength) * 100);
+
+    setLifeProgress(currentProgress);
+  };
+
+  const onChangeText = (e) => {
+    setText(e);
+  };
 
   const saveToDos = async (toSave) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     } catch (e) {
-      console.log(e);
+      console.log(e.message);
     }
   };
 
   const loadToDos = async () => {
     try {
       const s = await AsyncStorage.getItem(STORAGE_KEY);
+      // AsyncStorage.clear();
+      // const newToDos =
+      //   JSON.parse(s) && JSON.parse(s).length > 0
+      //     ? JSON.parse(s).sort(function (a, b) {
+      //         return a.city.localeCompare(b.id) || b.done - a.done;
+      //       })
+      //     : JSON.parse(s);
+      // setToDos(newToDos);
       setToDos(JSON.parse(s));
-      console.log(toDos);
+      getWorkProgress();
+      getLifeProgress();
     } catch (e) {
-      console.log(e);
+      console.log(e.message);
     }
   };
 
@@ -47,56 +105,88 @@ export default function App() {
     if (text === "") {
       return;
     }
+
     try {
-      const newToDos = toDos.append({ id: Date.now(), text, working, done: false, orderIndex: 0 });
- 
+      let newToDos = toDos && toDos.length > 0 ? toDos : [];
+      var obj = {
+        id: Date.now(),
+        text,
+        working,
+        done: false,
+        orderIndex: 0,
+      };
+      newToDos.push(obj);
       setToDos(newToDos);
       await saveToDos(newToDos);
+
       setText("");
     } catch (e) {
-      console.log(e);
+      console.log(e.message);
     }
+
+    getWorkProgress();
+    getLifeProgress();
   };
 
-  const deleteToDo = (key) => {
+  const deleteToDo = (id) => {
     Alert.alert("Delete To-Do", "Are You Sure?", [
       { text: "Cancel" },
       {
         text: "I'm sure",
         style: "destructive",
         onPress: async () => {
-          const newToDos = { ...toDos };
-          delete newToDos[key];
+          const newToDos = toDos.filter((t) => t.id != id);
           setToDos(newToDos);
           await saveToDos(newToDos);
+          getWorkProgress();
+          getLifeProgress();
         },
       },
     ]);
   };
 
-  const doneToggle = async (key) => {
-    console.log(toDos);
-    const newToDos = {
-      ...toDos,
-      [key]: {
-        ...toDos[key],
-        done: !toDos[key].done,
-      },
-    };
+  const doneToggle = async (id) => {
+    let newToDos = toDos.filter((t) => t["id"] !== id);
+    let newToDo = toDos.filter((t) => t["id"] === id)[0];
+    newToDo["done"] = !newToDo["done"];
+    newToDos.push(newToDo);
     setToDos(newToDos);
     await saveToDos(newToDos);
-    console.log(toDos);
+    getWorkProgress();
+    getLifeProgress();
+  };
+
+  const editToDo = () => {
+    try {
+      let itemToEdit = toDos && toDos.filter((t) => t.id == toEdit)[0];
+      itemToEdit = { ...itemToEdit, text: newText };
+      let newToDos = toDos.filter((t) => t.id != toEdit);
+      newToDos.push(itemToEdit);
+
+      setToDos(newToDos);
+      setModalShow(false);
+    } catch (e) {
+      console.log(e);
+    }
   };
 
   useEffect(() => {
-    loadToDos();
+    loadToDos().then(() => {
+      getWorkProgress();
+      getLifeProgress();
+    });
+    // loadToDos().then(() => getProgress());
   }, []);
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={work}>
+        <TouchableOpacity
+          onPress={() => {
+            work();
+          }}
+        >
           <Text
             style={{ ...styles.btnText, color: working ? "white" : theme.grey }}
           >
@@ -105,7 +195,9 @@ export default function App() {
         </TouchableOpacity>
         <TouchableHighlight
           activeOpacity={0.8}
-          onPress={life}
+          onPress={() => {
+            life();
+          }}
           backgroundColor={theme.bg}
         >
           <Text
@@ -127,44 +219,153 @@ export default function App() {
           value={text}
         />
       </View>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 20,
+        }}
+      >
+        <View
+          style={{
+            height: 20,
+            flexDirection: "row",
+            width: "90%",
+            backgroundColor: theme.grey,
+            borderColor: "#000",
+            borderWidth: 2,
+            borderRadius: 10,
+          }}
+        >
+          <View
+            style={{
+              width:
+                working == true
+                  ? workProgress
+                    ? workProgress.toString() + "%"
+                    : 0
+                  : lifeProgress
+                  ? lifeProgress.toString() + "%"
+                  : 0,
+              height: "100%",
+              backgroundColor: "rgb(250, 100," + barBlueColor.toString() + ")",
+              borderRadius: 10,
+              // borderBottomLeftRadius: 10,
+              // borderTopRightRadius: working == true ? workProgress ? workProgress.toString() + "%" : 0 :  lifeProgress ? lifeProgress.toString() + "%" : 0
+              // progress > 95 ? 10 : 0,
+              // borderBottomRightRadius: progress > 95 ? 10 : 0,
+            }}
+          ></View>
+        </View>
+        <Text style={{ color: "white" }}>
+          {working == true
+            ? workProgress
+              ? workProgress
+              : 0
+            : lifeProgress
+            ? lifeProgress
+            : 0}
+          %
+        </Text>
+      </View>
       <ScrollView>
-        {toDos
-          ? Object.keys(toDos).map((k) =>
-              toDos[k].working === working ? (
-                <View style={styles.toDo} key={k}>
+        {toDos && toDos.length > 0 ? (
+          toDos
+            .sort((a, b) => a.done - b.done)
+            .map((t) =>
+              t.working === working ? (
+                <View style={styles.toDo} key={t.id}>
                   <View flexDirection="row">
-                    <TouchableOpacity onPress={() => doneToggle(k)}>
+                    <TouchableOpacity onPress={() => doneToggle(t.id)}>
                       <Fontisto
                         name={
-                          toDos[k].done == false
+                          t.done == false
                             ? "checkbox-passive"
                             : "checkbox-active"
                         }
-                        size="20"
-                        color={
-                          toDos[k].done == false ? "white" : theme.lightGrey
-                        }
+                        size={20}
+                        color={t.done == false ? "white" : theme.lightGrey}
                       />
                     </TouchableOpacity>
                     <Text
                       style={{
                         ...styles.toDoText,
-                        color:
-                          toDos[k].done == false ? "white" : theme.lightGrey,
+                        color: t.done == false ? "white" : theme.lightGrey,
                         textDecorationLine:
-                          toDos[k].done == false ? "none" : "line-through",
+                          t.done == false ? "none" : "line-through",
                       }}
                     >
-                      {toDos[k].text}
+                      {t.text}
                     </Text>
                   </View>
-                  <TouchableOpacity onPress={() => deleteToDo(k)}>
-                    <Fontisto name="trash" size="20" color="white" />
-                  </TouchableOpacity>
+                  <View flexDirection="row">
+                    <TouchableOpacity
+                      onPress={() => {
+                        setModalShow(true);
+                        setToEdit(t.id);
+                        setEditText(t.text);
+                      }}
+                      style={{ marginRight: 10 }}
+                    >
+                      <Feather name="edit" size={20} color="white" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deleteToDo(t.id)}>
+                      <Fontisto name="trash" size={20} color="white" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ) : null
             )
-          : null}
+        ) : (
+          <View>
+            <Text color="white">Your List is empty</Text>
+          </View>
+        )}
+
+        <View style={styles.modalContainer}>
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={modalShow}
+            onRequestClose={() => {
+              Alert.alert("Modal has been closed.");
+              setModalVisible(!modalShow);
+            }}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalView}>
+                {/* <Text></Text> */}
+                <TextInput
+                  returnKeyType="done"
+                  style={styles.inputEdit}
+                  placeholder={editText}
+                  autoCapitalize={"sentences"}
+                  autoCorrect={true}
+                  onChangeText={(e) => {
+                    setNewText(e);
+                  }}
+                  onSubmitEditing={addToDo}
+                  // value={editText}
+                />
+                <View flexDirection="row">
+                  <Pressable
+                    style={styles.btnCancel}
+                    onPress={() => {
+                      setModalShow(!modalShow);
+                      setEditText("");
+                    }}
+                  >
+                    <Text style={{ color: "white" }}>Cancel</Text>
+                  </Pressable>
+                  <Pressable style={styles.btnEdit} onPress={editToDo}>
+                    <Text style={{ color: "white" }}>Edit</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </View>
       </ScrollView>
     </View>
   );
@@ -190,7 +391,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     paddingVertical: 15,
     paddingHorizontal: 20,
-    borderRadius: 30,
+    borderRadius: 8,
     marginVertical: 20,
     fontSize: 18,
   },
@@ -209,5 +410,61 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     marginLeft: 10,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 22,
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: "white",
+    borderRadius: 8,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: "80%",
+  },
+  btnCancel: {
+    backgroundColor: "darkgray",
+    marginRight: 10,
+    color: "white",
+    borderRadius: 20,
+    height: 40,
+    padding: 5,
+    width: 80,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  btnEdit: {
+    backgroundColor: "blue",
+    marginRight: 10,
+    color: "white",
+    borderRadius: 20,
+    height: 40,
+    padding: 5,
+    width: 80,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inputEdit: {
+    backgroundColor: "white",
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginVertical: 20,
+    fontSize: 18,
+    width: "90%",
+    borderBottomColor: "grey",
+    borderBottomWidth: 1,
+    // borderbottom: "solid"
   },
 });
