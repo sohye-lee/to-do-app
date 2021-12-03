@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Image,
   TouchableOpacity,
   Pressable,
   TouchableHighlight,
@@ -18,8 +19,11 @@ import { theme } from "./colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "@toDos";
+const STORAGE_KEY_NAME = "@yourName";
 
 export default function App() {
+  const [name, setName] = useState("Guest");
+  const [newName, setNewName] = useState("");
   const [working, setWorking] = useState(true);
   const [text, setText] = useState("");
 
@@ -27,10 +31,31 @@ export default function App() {
   const [workProgress, setWorkProgress] = useState(0);
   const [lifeProgress, setLifeProgress] = useState(0);
   const [modalShow, setModalShow] = useState(false);
+  const [nameModalShow, setNameModalShow] = useState(false);
   const [toEdit, setToEdit] = useState(0);
   const [editText, setEditText] = useState("");
   const [newText, setNewText] = useState("");
 
+  const saveName = async (name) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY_NAME, name);
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  const loadName = async () => {
+    try {
+      const n = await AsyncStorage.getItem(STORAGE_KEY_NAME);
+      if (n != "") {
+        setName("Guest");
+      } else {
+        setName(n);
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  };
   const life = () => {
     setWorking(false);
   };
@@ -175,12 +200,27 @@ export default function App() {
       getWorkProgress();
       getLifeProgress();
     });
+    loadName();
     // loadToDos().then(() => getProgress());
   }, []);
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
+      <View style={styles.headerLogo}>
+        <View style={styles.logoContainer}>
+          <Image
+            source={require("./assets/B.png")}
+            alt="logo"
+            style={styles.logo}
+          />
+        </View>
+        <TouchableOpacity onPress={() => setNameModalShow(true)}>
+          <Text style={{ color: "white" }}>
+            Hi, {name != "" ? name : "Guest"}
+          </Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => {
@@ -366,6 +406,58 @@ export default function App() {
             </View>
           </Modal>
         </View>
+
+        <View style={styles.modalContainer}>
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={nameModalShow}
+            onRequestClose={() => {
+              Alert.alert("Modal has been closed.");
+              setModalVisible(!nameModalShow);
+            }}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalView}>
+                {/* <Text></Text> */}
+                <TextInput
+                  returnKeyType="done"
+                  style={styles.inputEdit}
+                  placeholder={name != "" ? name : "Guest"}
+                  autoCapitalize={"words"}
+                  autoCorrect={true}
+                  onChangeText={(e) => {
+                    setNewName(e);
+                  }}
+                  maxLength={20}
+                  onSubmitEditing={() => setName(newName)}
+                  // value={editText}
+                />
+                <View flexDirection="row">
+                  <Pressable
+                    style={styles.btnCancel}
+                    onPress={() => {
+                      setNameModalShow(!nameModalShow);
+                      setNewName("");
+                    }}
+                  >
+                    <Text style={{ color: "white" }}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.btnEdit}
+                    onPress={() => {
+                      setName(newName);
+                      setNameModalShow(false);
+                      saveName(newName);
+                    }}
+                  >
+                    <Text style={{ color: "white" }}>Edit</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </View>
       </ScrollView>
     </View>
   );
@@ -377,10 +469,28 @@ const styles = StyleSheet.create({
     backgroundColor: theme.bg,
     paddingHorizontal: 20,
   },
+  headerLogo: {
+    marginTop: 60,
+    paddingLeft: 8,
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  logoContainer: {
+    width: 120,
+    height: 50,
+  },
+  logo: {
+    flex: 1,
+    width: null,
+    height: null,
+    resizeMode: "contain",
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 80,
+    marginTop: 20,
   },
   btnText: {
     color: theme.grey,
