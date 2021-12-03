@@ -45,15 +45,11 @@ export default function App() {
   };
 
   const loadName = async () => {
-    try {
-      const n = await AsyncStorage.getItem(STORAGE_KEY_NAME);
-      if (n != "") {
-        setName("Guest");
-      } else {
-        setName(n);
-      }
-    } catch (e) {
-      console.log(e);
+    const n = await AsyncStorage.getItem(STORAGE_KEY_NAME);
+    if (n != "") {
+      setName("Guest");
+    } else {
+      setName(n);
     }
   };
   const life = () => {
