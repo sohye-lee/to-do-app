@@ -7,6 +7,18 @@
   "short_name": "BetterToday",
   "start_url": "/?utm_source=web_app_manifest",
   "orientation": "portrait",
+  "related_applications": [
+    {
+      "platform": "itunes",
+      "id": "com.sohyelee.bettertodayapp"
+    },
+    {
+      "platform": "play",
+      "url": "http://play.google.com/store/apps/details?id=com.sohyelee.bettertodayapp",
+      "id": "com.sohyelee.bettertodayapp"
+    }
+  ],
+  "prefer_related_applications": true,
   "icons": [
     {
       "src": "/pwa/chrome-icon/chrome-icon-144.png",
