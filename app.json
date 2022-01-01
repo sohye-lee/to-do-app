@@ -28,7 +28,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "description": "Simple To Do app for a balance between your work and life",
+    "description": "",
     "githubUrl": "https://github.com/sohye-lee/to-do-app"
   }
 }
