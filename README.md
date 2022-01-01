@@ -1,1 +1,2 @@
-# to-do-app
+# Better Today
+### Simple To-Do List App
